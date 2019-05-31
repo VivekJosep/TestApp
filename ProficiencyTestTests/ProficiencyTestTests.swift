@@ -10,13 +10,15 @@ import XCTest
 @testable import ProficiencyTest
 
 class ProficiencyTestTests: XCTestCase {
+    let path = Bundle.main.path(forResource: "Facts", ofType: "json")
+    let countryTitle: String = "About Canada"
 
     override func setUp() {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+       super.setUp()
     }
 
     override func tearDown() {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        super.tearDown()
     }
 
     func testExample() {
@@ -24,10 +26,45 @@ class ProficiencyTestTests: XCTestCase {
         // Use XCTAssert and related functions to verify your tests produce the correct results.
     }
 
-    func testPerformanceExample() {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
+    func testNetworkConnection() {
+        
+        if(Utility.isConnectedToInternet()) {
+            let promise = expectation(description: "Completion Handler was successfully invoked")
+            var responseError: Error?
+            var responseData: Decodable?
+            NetworkManager.getFacts {(facts,error) in
+                if error != nil {
+                    XCTAssert(false,"Failed to get data from server")
+                }
+                responseData = facts
+                responseError = error
+                promise.fulfill()
+            }
+            
+            waitForExpectations(timeout: 10, handler: nil)
+            XCTAssertNil(responseError)
+            XCTAssertNotNil(responseData)
+        } else {
+            print("Internet connectoin required for the test")
+        }
+    }
+    
+    func testJSONParsing() {
+        do {
+            
+            let fileContent = try String(contentsOfFile: path!, encoding: String.Encoding.ascii)
+            
+            let encodedString = fileContent.data(using: String.Encoding.utf8)! as Data
+            let parsedData = try JSONDecoder().decode(CountryFacts.self, from: encodedString)
+            
+            XCTAssertNotNil(parsedData)
+            XCTAssertEqual(parsedData.factList?.count, 14)
+            XCTAssertEqual(parsedData.factsFiltered?.count, 13)
+            XCTAssertEqual(parsedData.title, countryTitle)
+            
+           
+        } catch let err {
+            XCTFail("Parsing the data from stub faile with \(err.localizedDescription)")
         }
     }
 
